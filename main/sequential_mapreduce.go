@@ -14,7 +14,7 @@ func main() {
 		log.Fatal("Usage: ./sequential_mapreduce plugin.so in1.txt in2.txt in3.txt ...")
 	}
 
-	mapf, reducef := mapreduce.LoadPlugin(os.Args[1])
+	mapFunc, reduceFunc := mapreduce.LoadPlugin(os.Args[1])
 
 	intermediate := []mapreduce.KVPair{}
 	for _, filename := range os.Args[2:] {
@@ -28,13 +28,13 @@ func main() {
 		}
 		file.Close()
 
-		mappedPairs := mapf(filename, string(content))
+		mappedPairs := mapFunc(filename, string(content))
 		intermediate = append(intermediate, mappedPairs...)
 	}
 
 	sort.Sort(mapreduce.ByKey(intermediate))
 
-	outfile, err := os.Create("mr-out-0")
+	outfile, err := os.Create("mapreduce-out")
 	if err != nil {
 		log.Fatalf("Cannot open outfile: %v", err)
 	}
@@ -48,7 +48,7 @@ func main() {
 			values = append(values, intermediate[j].Value)
 			j++
 		}
-		output := reducef(intermediate[i].Key, values)
+		output := reduceFunc(intermediate[i].Key, values)
 		fmt.Fprintf(outfile, "%v %v\n", intermediate[i].Key, output)
 
 		i = j

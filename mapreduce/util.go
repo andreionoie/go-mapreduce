@@ -1,9 +1,16 @@
 package mapreduce
 
 import (
+	"hash/fnv"
 	"log"
 	"plugin"
 )
+
+func Fnv1aHash(s string) int {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return int(h.Sum32())
+}
 
 func LoadPlugin(filename string) (func(string, string) []KVPair, func(string, []string) string) {
 	plgn, err := plugin.Open(filename)
@@ -20,14 +27,14 @@ func LoadPlugin(filename string) (func(string, string) []KVPair, func(string, []
 		log.Fatalf("Error in plugin lookup for Reduce: %v", err)
 	}
 
-	mapf, ok := mapSymbol.(func(string, string) []KVPair)
+	mapFunc, ok := mapSymbol.(func(string, string) []KVPair)
 	if !ok {
 		log.Fatalf("Map symbol from plugin failed the type assertion")
 	}
-	reducef, ok := reduceSymbol.(func(string, []string) string)
+	reduceFunc, ok := reduceSymbol.(func(string, []string) string)
 	if !ok {
 		log.Fatalf("Reduce symbol from plugin failed the type assertion")
 	}
 
-	return mapf, reducef
+	return mapFunc, reduceFunc
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func Map(filename string, contents string) []mapreduce.KVPair {
-	return []mapreduce.KVPair{mapreduce.KVPair{Key: filename, Value: "1"}}
+	return []mapreduce.KVPair{{Key: filename, Value: "1"}}
 }
 
 func Reduce(key string, values []string) string {

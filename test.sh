@@ -14,8 +14,8 @@ tmp_dir=$(mktemp -d)
 # --- Build Stage: Compile Go binaries ---
 
 declare -a build_targets=(
-    "plugins/wordcounter.go"
-    "plugins/reduce-delay.go"
+    "plugins/wordcounter/wordcounter.go"
+    "plugins/reduce-delay/reduce-delay.go"
     "cmd/master/run_master.go"
     "cmd/worker/run_worker.go"
     "cmd/sequential/sequential_mapreduce.go"

@@ -15,6 +15,7 @@ tmp_dir=$(mktemp -d)
 
 declare -a build_targets=(
     "plugins/wordcounter/wordcounter.go"
+    "plugins/inverted-index/inverted-index.go"
     "plugins/reduce-delay/reduce-delay.go"
     "cmd/master/run_master.go"
     "cmd/worker/run_worker.go"
@@ -32,6 +33,7 @@ done
 # Construct absolute paths to executables
 sequential_mapreduce="$tmp_dir/sequential_mapreduce"
 wordcounter_plugin="$tmp_dir/wordcounter.so"
+inverted_index_plugin="$tmp_dir/inverted-index.so"
 reduce_delay_plugin="$tmp_dir/reduce-delay.so"
 run_master="$tmp_dir/run_master"
 run_worker="$tmp_dir/run_worker"
@@ -67,6 +69,41 @@ if cmp mapreduce-wc-expected mapreduce-wc-out; then
     echo '---' "$test_name: PASS"
 else
     echo '---' "wordcounter output is NOT the same as the sequential version"
+    echo '---' "$test_name: FAIL"
+    failed_any=1
+fi
+
+# wait for all workers processes to finish
+wait
+
+popd # back to temp directory
+
+# --- Test: Basic Inverted Index Output Check ---
+test_name="inverted-index-test"
+mkdir "$test_name" && pushd "$test_name"
+
+
+$sequential_mapreduce $inverted_index_plugin $repo_base_dir/in/pg*.txt
+sort mapreduce-out > mapreduce-index-expected
+rm mapreduce-out
+
+
+$SHORT_TIMEOUT_CMD $run_master $repo_base_dir/in/pg*.txt &
+master_pid=$!
+
+sleep 1 # allow master to init
+
+for i in {1..3}; do # spawn 3 workers
+    $SHORT_TIMEOUT_CMD $run_worker $inverted_index_plugin &
+done
+
+wait $master_pid
+sort mapreduce-out-*-of-* > mapreduce-index-out
+
+if cmp mapreduce-index-expected mapreduce-index-out; then
+    echo '---' "$test_name: PASS"
+else
+    echo '---' "inverted index output is NOT the same as the sequential version"
     echo '---' "$test_name: FAIL"
     failed_any=1
 fi

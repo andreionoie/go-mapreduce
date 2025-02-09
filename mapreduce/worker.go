@@ -86,7 +86,7 @@ func CallTaskRequest(mapFunc func(string, string) []KVPair, reduceFunc func(stri
 	}
 }
 
-func doReduceTask(reply WorkerAssignedTaskReply, reducef func(string, []string) string) []string {
+func doReduceTask(reply WorkerAssignedTaskReply, reduceFunc func(string, []string) string) []string {
 	if len(reply.InputFilePaths) <= 0 {
 		panic("expected one or more input files for reduce task")
 	}
@@ -130,7 +130,7 @@ func doReduceTask(reply WorkerAssignedTaskReply, reducef func(string, []string) 
 
 		fmt.Fprintf(outFile, "%v %v\n",
 			intermediateKva[i].Key,
-			reducef(intermediateKva[i].Key, valuesWithSameKey),
+			reduceFunc(intermediateKva[i].Key, valuesWithSameKey),
 		)
 
 		i = j

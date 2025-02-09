@@ -15,6 +15,7 @@ tmp_dir=$(mktemp -d)
 
 declare -a build_targets=(
     "plugins/wordcounter.go"
+    "plugins/reduce-delay.go"
     "cmd/master/run_master.go"
     "cmd/worker/run_worker.go"
     "cmd/sequential/sequential_mapreduce.go"
@@ -31,6 +32,7 @@ done
 # Construct absolute paths to executables
 sequential_mapreduce="$tmp_dir/sequential_mapreduce"
 wordcounter_plugin="$tmp_dir/wordcounter.so"
+reduce_delay_plugin="$tmp_dir/reduce-delay.so"
 run_master="$tmp_dir/run_master"
 run_worker="$tmp_dir/run_worker"
 
@@ -40,11 +42,11 @@ pushd "$tmp_dir"
 failed_any=0
 
 # --- Test: Basic WordCounter Output Check ---
-test_name="wordcounter_test"
+test_name="wordcounter-test"
 mkdir "$test_name" && pushd "$test_name"
 
 
-"$sequential_mapreduce" $wordcounter_plugin $repo_base_dir/in/pg*.txt
+$sequential_mapreduce $wordcounter_plugin $repo_base_dir/in/pg*.txt
 sort mapreduce-out > mapreduce-wc-expected
 rm mapreduce-out
 
@@ -59,7 +61,7 @@ for i in {1..3}; do # spawn 3 workers
 done
 
 wait $master_pid
-sort mapreduce-out-* > mapreduce-wc-out
+sort mapreduce-out-*-of-* > mapreduce-wc-out
 
 if cmp mapreduce-wc-expected mapreduce-wc-out; then
     echo '---' "$test_name: PASS"
@@ -74,7 +76,37 @@ wait
 
 popd # back to temp directory
 
+# --- Test: Worker or Master exits before job has completed ---
+test_name="earlyexit-test"
+mkdir "$test_name" && pushd "$test_name"
 
+DF=anydone$$ # file to check if any worker or master has exited
+rm -f $DF
+
+($SHORT_TIMEOUT_CMD $run_master $repo_base_dir/in/pg*.txt; touch $DF) &
+master_pid=$!
+sleep 1 # allow master to init
+for i in {1..3}; do # spawn 3 workers
+    ($SHORT_TIMEOUT_CMD $run_worker $reduce_delay_plugin; touch $DF) &
+done
+jobs
+
+# save the output after any process has exited
+while [ ! -e $DF ]; do sleep 0.2; done
+sort mapreduce-out-*-of-* > mapreduce-out-initial
+# save the final output after all exited
+wait
+sort mapreduce-out-*-of-* > mapreduce-out-final
+
+if cmp mapreduce-out-initial mapreduce-out-final; then
+    echo '---' "$test_name: PASS"
+else
+    echo '---' "output changed after a worker or master exited"
+    echo '---' "$test_name: FAIL"
+    failed_any=1
+fi
+
+popd # back to temp directory
 
 popd # back to initial directory
 

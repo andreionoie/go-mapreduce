@@ -9,57 +9,62 @@ import (
 	"unicode"
 )
 
-type DocumentData struct {
-	Filename  string `json:"file"`
-	Positions []int  `json:"offsets"`
-}
-
 func Map(filename string, contents string) []mapreduce.KVPair {
 	filename = filepath.Base(filename)
-	// function to detect word separators.
-	ff := func(r rune) bool { return !unicode.IsLetter(r) }
 
-	// split contents into an array of words.
-	words := strings.FieldsFunc(contents, ff)
+	// helper to test for word separators
+	isNotLetter := func(r rune) bool { return !unicode.IsLetter(r) }
 
-	wordPositions := make(map[string][]int)
+	// accumulate all data in a map keyed by the word
+	wordData := make(map[string]*DocumentData)
 
-	for position, word := range words {
-		word = strings.ToLower(word)
-		word = strings.TrimSpace(word)
+	wordIndex := 0
+	var startOffset int
+	var currentWord strings.Builder
 
-		if word == "" { // skip empty words
-			continue
+	// append a "sentinel" space to handle the last word in the same loop
+	contents += " "
+	for i, r := range contents {
+		// if we hit a separator, record any accumulated word
+		if isNotLetter(r) {
+			if currentWord.Len() > 0 {
+				word := strings.ToLower(currentWord.String())
+				addWordData(wordData, word, filename, wordIndex, startOffset)
+				wordIndex++
+				currentWord.Reset()
+			}
+		} else {
+			// if starting a new word, note the start byte offset
+			if currentWord.Len() == 0 {
+				startOffset = i
+			}
+			currentWord.WriteRune(r)
 		}
-
-		wordPositions[word] = append(wordPositions[word], position)
 	}
 
-	pairs := []mapreduce.KVPair{}
-	for word, positions := range wordPositions {
-		docDataJSON, err := json.Marshal(DocumentData{Filename: filename, Positions: positions})
+	pairs := make([]mapreduce.KVPair, 0, len(wordData))
+	for word, data := range wordData {
+		docDataBytes, err := json.Marshal(data)
 		if err != nil {
 			panic(err)
 		}
-		pairs = append(pairs, mapreduce.KVPair{Key: word, Value: string(docDataJSON)})
+		pairs = append(pairs, mapreduce.KVPair{Key: word, Value: string(docDataBytes)})
 	}
-
 	return pairs
 }
 
-// key will be a unique word and value is a JSON of filename and byte offsets
+// Reduce merges all the DocumentData objects for a word and returns them sorted by filename.
 func Reduce(key string, values []string) string {
-	docList := []DocumentData{}
+	var docList []DocumentData
 	for _, jsonValue := range values {
 		var docData DocumentData
-		err := json.Unmarshal([]byte(jsonValue), &docData)
-		if err != nil {
+		if err := json.Unmarshal([]byte(jsonValue), &docData); err != nil {
 			panic(err)
 		}
 		docList = append(docList, docData)
 	}
 
-	// sort for idempotency
+	// sort for idempotent output
 	sort.Slice(docList, func(i, j int) bool {
 		return docList[i].Filename < docList[j].Filename
 	})
@@ -69,4 +74,21 @@ func Reduce(key string, values []string) string {
 		panic(err)
 	}
 	return string(docsWithOffsetsJSON)
+}
+
+type DocumentData struct {
+	Filename    string `json:"file"`
+	Positions   []int  `json:"positions"`
+	ByteOffsets []int  `json:"byteOffsets"`
+}
+
+// addWordData appends positions and byte offsets for the given word into wordData.
+func addWordData(wordData map[string]*DocumentData, word, filename string, position, startOffset int) {
+	doc, exists := wordData[word]
+	if !exists {
+		doc = &DocumentData{Filename: filename}
+		wordData[word] = doc
+	}
+	doc.Positions = append(doc.Positions, position)
+	doc.ByteOffsets = append(doc.ByteOffsets, startOffset)
 }

@@ -9,7 +9,7 @@ SHORT_TIMEOUT_CMD="timeout -k 2s 45s"
 LONG_TIMEOUT_CMD="timeout -k 2s 120s"
 
 repo_base_dir=$(pwd)
-tmp_dir=$(mktemp -d)
+tmp_dir=$(mktemp -d -t mapreduce-tests)
 
 # --- Build Stage: Compile Go binaries ---
 

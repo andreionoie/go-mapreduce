@@ -7,7 +7,6 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"sort"
 	"time"
 )
@@ -152,10 +151,10 @@ func doMapTask(reply WorkerAssignedTaskReply, mapFunc func(string, string) []KVP
 	defer file.Close()
 
 	// temp dir to store the intermediate files
-	tempDir, err := os.MkdirTemp("", workerName)
-	if err != nil {
-		panic(err)
-	}
+	// tempDir, err := os.MkdirTemp("", workerName)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// read the input split (file) contents
 	splitContent, err := io.ReadAll(file)
@@ -179,7 +178,8 @@ func doMapTask(reply WorkerAssignedTaskReply, mapFunc func(string, string) []KVP
 		}
 
 		intermediateFileName := fmt.Sprintf("intermediate-M%d-R%d.json", reply.TaskNumber, reduceTaskNumber)
-		intermediateFilePath := filepath.Join(tempDir, intermediateFileName)
+		// intermediateFilePath := filepath.Join(tempDir, intermediateFileName)
+		intermediateFilePath := intermediateFileName
 		intermediateFile, err := os.OpenFile(intermediateFilePath, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 		if err != nil {
 			panic(err)

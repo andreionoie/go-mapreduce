@@ -187,7 +187,9 @@ func doMapTask(reply WorkerAssignedTaskReply, mapFunc func(string, string) []KVP
 		defer intermediateFile.Close()
 		encoder := json.NewEncoder(intermediateFile)
 		encoder.SetIndent("", "\t")
-		encoder.Encode(intermediateKva)
+		if err := encoder.Encode(intermediateKva); err != nil {
+			log.Fatal(err)
+		}
 		intermediateFilePaths = append(intermediateFilePaths, intermediateFilePath)
 	}
 

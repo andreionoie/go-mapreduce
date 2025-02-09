@@ -214,13 +214,16 @@ func (m *Master) startTasksDaemon() {
 			}
 			m.tasksMutex.Unlock()
 
-			<-time.Tick(time.Second)
+			//lint:ignore SA1015 we are on Go 1.23+, so this is not a leak
+			<-time.Tick(time.Second) //nolint SA1015: using time.Tick leaks the underlying ticker
 		}
 	}()
 }
 
 func (m *Master) startRPCServer() {
-	rpc.Register(m)
+	if err := rpc.Register(m); err != nil {
+		log.Fatal(err)
+	}
 	rpc.HandleHTTP()
 
 	sock := masterSocket()
@@ -230,7 +233,11 @@ func (m *Master) startRPCServer() {
 		log.Fatal(err)
 	}
 
-	go http.Serve(listener, nil)
+	go func() {
+		if err := http.Serve(listener, nil); err != nil {
+			log.Printf("http.Serve() returned error: %v", err)
+		}
+	}()
 }
 
 func InitMaster(reduceTasks int, inputFilepaths []string) *Master {

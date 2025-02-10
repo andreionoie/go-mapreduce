@@ -19,6 +19,8 @@ declare -a build_targets=(
     "plugins/inverted-index/inverted-index.go"
     "plugins/reduce-delay/reduce-delay.go"
     "plugins/jobcount/jobcount.go"
+    "plugins/map-timing/map-timing.go"
+    "plugins/reduce-timing/reduce-timing.go"
 
     "cmd/master/run_master.go"
     "cmd/worker/run_worker.go"
@@ -39,6 +41,8 @@ wordcounter_crash_delay_plugin="$tmp_dir/wordcounter-crash-delay.so"
 inverted_index_plugin="$tmp_dir/inverted-index.so"
 reduce_delay_plugin="$tmp_dir/reduce-delay.so"
 jobcount_plugin="$tmp_dir/jobcount.so"
+map_timing_plugin="$tmp_dir/map-timing.so"
+reduce_timing_plugin="$tmp_dir/reduce-timing.so"
 
 run_master="$tmp_dir/run_master"
 run_worker="$tmp_dir/run_worker"
@@ -170,6 +174,64 @@ else
     echo '---' "map jobs ran incorrect number of times ($NT != ${#input_files[@]})"
     echo '---' "$test_name: FAIL"
     failed_any=1
+fi
+
+wait
+
+popd # back to temp directory
+
+# --- Test: Map Parallelism ---
+test_name="map-parallelism-test"
+mkdir "$test_name" && pushd "$test_name"
+
+input_files=( $repo_base_dir/in/pg*.txt )
+$SHORT_TIMEOUT_CMD $run_master ${input_files[@]} &
+sleep 1
+
+$SHORT_TIMEOUT_CMD $run_worker $map_timing_plugin &
+$SHORT_TIMEOUT_CMD $run_worker $map_timing_plugin &
+$SHORT_TIMEOUT_CMD $run_worker $map_timing_plugin
+
+
+NT=$(cat mapreduce-out-*-of-* | grep '^times-' | wc -l | sed 's/ //g')
+if [ "$NT" != "3" ]
+then
+  echo '---' "saw $NT workers rather than 3"
+  echo '---' "$test_name: FAIL"
+  failed_any=1
+fi
+if cat mapreduce-out-*-of-* | grep '^parallel-[0-9]*.* 3' > /dev/null; then
+    echo '---' "$test_name: PASS"
+else
+    echo '---' "map workers did not run in parallel"
+    echo '---' "$test_name: FAIL"
+    failed_any=1
+fi
+
+wait
+
+popd # back to temp directory
+
+# --- Test: Reduce Parallelism ---
+test_name="reduce-parallelism-test"
+mkdir "$test_name" && pushd "$test_name"
+
+input_files=( $repo_base_dir/in/pg*.txt )
+$SHORT_TIMEOUT_CMD $run_master ${input_files[@]} &
+sleep 1
+
+$SHORT_TIMEOUT_CMD $run_worker $reduce_timing_plugin &
+$SHORT_TIMEOUT_CMD $run_worker $reduce_timing_plugin
+
+
+NT=$(cat mapreduce-out-*-of-* | grep '^[a-z] 2' | wc -l | sed 's/ //g')
+if [ "$NT" -lt "2" ]
+then
+  echo '---' "too few parallel reduces"
+  echo '---' "$test_name: FAIL"
+  failed_any=1
+else
+    echo '---' "$test_name: PASS"
 fi
 
 wait

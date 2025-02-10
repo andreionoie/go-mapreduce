@@ -3,6 +3,8 @@ package mapreduce
 import (
 	"log"
 	"net/rpc"
+	"os"
+	"strings"
 )
 
 type TaskType int
@@ -109,6 +111,11 @@ type WorkerAssignedTaskReply struct {
 func CallMaster(rpcname string, args interface{}, reply interface{}) bool {
 	client, err := rpc.DialHTTP("unix", masterSocket())
 	if err != nil {
+		if strings.Contains(err.Error(), "connect: connection refused") {
+			log.Print("Master unavailable, exiting...")
+			os.Exit(0)
+		}
+
 		log.Fatal(err)
 	}
 	defer client.Close()

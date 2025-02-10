@@ -111,6 +111,8 @@ func (m *Master) WorkerTaskUpdate(args *WorkerTaskUpdateArgs, reply *WorkerTaskS
 	if foundTask.Type == Reduce && m.countTasks(Idle|InProgress, Reduce) == 0 {
 		log.Print("Last reduce task finished, exiting soon...")
 		reply.Response = AllTasksFinished
+	} else {
+		reply.Response = AssignedTask // TODO: create a more representative OK response status for the task update
 	}
 
 	return nil

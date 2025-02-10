@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"math/rand"
 	"os"
+	"slices"
 	"sort"
 	"time"
 )
@@ -108,9 +110,7 @@ func doReduceTask(reply WorkerAssignedTaskReply, reduceFunc func(string, []strin
 
 	sort.Sort(ByKey(intermediateKva))
 
-	width := len(fmt.Sprintf("%d", reply.NReduce-1))
-	outFileName := fmt.Sprintf("mapreduce-out-%0*d-of-%d", width, reply.TaskNumber, reply.NReduce-1)
-	outFile, err := os.Create(outFileName)
+	outFile, err := os.CreateTemp("", "")
 	if err != nil {
 		panic(err)
 	}
@@ -134,6 +134,12 @@ func doReduceTask(reply WorkerAssignedTaskReply, reduceFunc func(string, []strin
 		)
 
 		i = j
+	}
+
+	width := len(fmt.Sprintf("%d", reply.NReduce-1))
+	outFileName := fmt.Sprintf("mapreduce-out-%0*d-of-%d", width, reply.TaskNumber, reply.NReduce-1)
+	if err := os.Rename(outFile.Name(), outFileName); err != nil {
+		panic(err)
 	}
 
 	return []string{outFileName}
@@ -170,17 +176,14 @@ func doMapTask(reply WorkerAssignedTaskReply, mapFunc func(string, string) []KVP
 		bucket := Fnv1aHash(kv.Key) % reply.NReduce
 		kvaShards[bucket] = append(kvaShards[bucket], kv)
 	}
-	var intermediateFilePaths []string
+	intermediateFilePaths := make(map[string]string)
 	// write into nReduce files
 	for reduceTaskNumber, intermediateKva := range kvaShards {
 		if len(intermediateKva) == 0 {
 			continue
 		}
 
-		intermediateFileName := fmt.Sprintf("intermediate-M%d-R%d.json", reply.TaskNumber, reduceTaskNumber)
-		// intermediateFilePath := filepath.Join(tempDir, intermediateFileName)
-		intermediateFilePath := intermediateFileName
-		intermediateFile, err := os.OpenFile(intermediateFilePath, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+		intermediateFile, err := os.CreateTemp("", "")
 		if err != nil {
 			panic(err)
 		}
@@ -190,10 +193,21 @@ func doMapTask(reply WorkerAssignedTaskReply, mapFunc func(string, string) []KVP
 		if err := encoder.Encode(intermediateKva); err != nil {
 			log.Fatal(err)
 		}
-		intermediateFilePaths = append(intermediateFilePaths, intermediateFilePath)
+
+		intermediateFileName := fmt.Sprintf("intermediate-M%d-R%d.json", reply.TaskNumber, reduceTaskNumber)
+		// intermediateFilePath := filepath.Join(tempDir, intermediateFileName)
+		intermediateFilePath := intermediateFileName
+
+		intermediateFilePaths[intermediateFile.Name()] = intermediateFilePath
 	}
 
-	return intermediateFilePaths
+	for tempFile, destFile := range intermediateFilePaths {
+		if err := os.Rename(tempFile, destFile); err != nil {
+			panic(err)
+		}
+	}
+
+	return slices.Collect(maps.Values(intermediateFilePaths))
 }
 
 func initWorkerName() {

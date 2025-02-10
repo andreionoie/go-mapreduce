@@ -64,7 +64,7 @@ func Reduce(key string, values []string) string {
 		docList = append(docList, docData)
 	}
 
-	// sort for idempotent output
+	// sort for deterministic output
 	sort.Slice(docList, func(i, j int) bool {
 		return docList[i].Filename < docList[j].Filename
 	})

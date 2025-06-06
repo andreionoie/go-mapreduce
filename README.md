@@ -55,7 +55,7 @@ flowchart LR
     subgraph Intermediate Files
         direction TB
 
-        subgraph "Partition R = 0"
+        subgraph "Partition 0"
             direction TB
             IR00(["intermediate-M0-R0.json"]):::intermediate
             IRdots0(["..."]):::intermediate
@@ -67,7 +67,7 @@ flowchart LR
             middleDots(["..."]):::intermediate
         end
 
-        subgraph "Partition R = R-1"
+        subgraph "Partition R-1"
             direction TB
             IR0R(["intermediate-M0-R[R-1].json"]):::intermediate
             IRdotsR(["..."]):::intermediate

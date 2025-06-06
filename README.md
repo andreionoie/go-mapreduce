@@ -155,7 +155,7 @@ workers may join and leave at any time; the master detects failures, re-assigns 
 
 ### [core library (`mapreduce/`)](./mapreduce/)
 -	RPC types & helpers – TaskType, TaskState, TaskResponseType, CallMaster
--	task scheduler – logic for timeouts, re-assignment, and reduce-task synthesis lives in [`master.go`](./mapreduce/master.go)
+-	task scheduler – [`master.go`](./mapreduce/master.go) handles logic for timeouts, re-assignment, and map/reduce task creation 
 -	worker runtime – [`worker.go`](./mapreduce/worker.go) contains the event loop, map/reduce helpers, and a readable worker name generator (e.g., GroovyLynx_4242).
 
 ### [example plugins (`plugins/`)](./plugins/)

@@ -163,10 +163,14 @@ workers may join and leave at any time; the master detects failures, re-assigns 
 |---------------------------------|----------------------------------------------|--------------------------------------------------------------------|
 | `wordcounter`                   | canonical “word count”                       | [plugins/wordcounter/wordcounter.go](./plugins/wordcounter/wordcounter.go) |
 | `inverted-index`                | emits word -> [file, positions]              | [plugins/inverted-index/inverted-index.go](./plugins/inverted-index/inverted-index.go) |
+| `grep`                          | distributed grep using regex `GREP_PATTERN` | [plugins/grep/grep.go](./plugins/grep/grep.go) |
 | `map-timing` / `reduce-timing`  | verify parallelism                           | [plugins/map-timing/map-timing.go](./plugins/map-timing/map-timing.go) and [plugins/reduce-timing/reduce-timing.go](./plugins/reduce-timing/reduce-timing.go) |
 | `jobcount`                      | ensure each map runs once                    | [plugins/jobcount/jobcount.go](./plugins/jobcount/jobcount.go) |
 | `reduce-delay`                  | stress long‐running reduce                   | [plugins/reduce-delay/reduce-delay.go](./plugins/reduce-delay/reduce-delay.go) |
 | `wordcounter-crash-delay`       | random crashes & delays to test recovery     | [plugins/wordcounter-crash-delay/wordcounter-crash-delay.go](./plugins/wordcounter-crash-delay/wordcounter-crash-delay.go) |
+
+Set the environment variable `GREP_PATTERN` to specify the regular
+expression used by the grep plugin. When unset, it defaults to `A`.
 
 ### minimal sequential runner ([cmd/sequential/](./cmd/sequential/))
 a single-process baseline used only to verify the correctness of the distributed version's output.
